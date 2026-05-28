@@ -603,16 +603,13 @@ function initEventListeners() {
             targetBtn.classList.add("active");
             
             const view = targetBtn.dataset.view;
-            if (view === "result") {
-                document.getElementById("panel-result").style.display = "flex";
-                document.getElementById("panel-graph").style.display = "none";
-            } else {
-                document.getElementById("panel-result").style.display = "none";
-                document.getElementById("panel-graph").style.display = "flex";
-                // グラフが表示された時にリサイズを促す
-                if (window.myChart) {
-                    window.myChart.resize();
-                }
+            document.getElementById("panel-input").style.display = view === "input" ? "flex" : "none";
+            document.getElementById("panel-result").style.display = view === "result" ? "flex" : "none";
+            document.getElementById("panel-graph").style.display = view === "graph" ? "flex" : "none";
+            
+            // グラフが表示された時にリサイズを促す
+            if (view === "graph" && window.myChart) {
+                window.myChart.resize();
             }
         });
     });

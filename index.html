@@ -155,8 +155,26 @@
 
             <!-- 右カラム: 計算結果 & グラフ -->
             <div class="right-column">
-                <!-- 測定値データ入力 (左カラムから移動) -->
-                <section class="panel panel-input" style="margin-bottom: 0px;">
+                <!-- 右カラム共通ヘッダー（ビュー切り替えとサンプル選択） -->
+                <div class="right-column-header">
+                    <div class="main-view-tabs">
+                        <button class="view-tab-btn active" data-view="input">
+                            <i data-lucide="edit-3"></i> データ入力
+                        </button>
+                        <button class="view-tab-btn" data-view="result">
+                            <i data-lucide="table"></i> データ出力
+                        </button>
+                        <button class="view-tab-btn" data-view="graph">
+                            <i data-lucide="line-chart"></i> グラフ・フィッティング解析
+                        </button>
+                    </div>
+                    <div class="sample-tabs" id="sample-selector-container">
+                        <!-- アクティブサンプル選択用タブが動的に挿入されます -->
+                    </div>
+                </div>
+
+                <!-- 測定値データ入力 -->
+                <section class="panel panel-input" id="panel-input" style="display: flex;">
                     <div class="panel-header">
                         <div class="panel-title">
                             <i data-lucide="edit-3"></i>
@@ -204,23 +222,8 @@
                     </div>
                 </section>
 
-                <!-- 右カラム共通ヘッダー（ビュー切り替えとサンプル選択） -->
-                <div class="right-column-header">
-                    <div class="main-view-tabs">
-                        <button class="view-tab-btn active" data-view="result">
-                            <i data-lucide="table"></i> データ出力
-                        </button>
-                        <button class="view-tab-btn" data-view="graph">
-                            <i data-lucide="line-chart"></i> グラフ・フィッティング解析
-                        </button>
-                    </div>
-                    <div class="sample-tabs" id="sample-selector-container">
-                        <!-- アクティブサンプル選択用タブが動的に挿入されます -->
-                    </div>
-                </div>
-
                 <!-- 計算結果テーブル -->
-                <section class="panel panel-result" id="panel-result">
+                <section class="panel panel-result" id="panel-result" style="display: none;">
                     <div class="panel-header">
                         <div class="panel-title">
                             <i data-lucide="table"></i>
