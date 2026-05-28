@@ -1,0 +1,491 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>E型粘度計解析ツール</title>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Noto+Sans+JP:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <!-- Lucide Icons (via CDN) -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- Style Sheet -->
+    <link rel="stylesheet" href="style.css">
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- KaTeX for LaTeX rendering -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.js"></script>
+</head>
+<body>
+    <div class="app-container">
+        <!-- ヘッダー -->
+        <header class="app-header">
+            <div class="header-main">
+                <button id="sidebar-toggle-btn" class="btn btn-icon" style="margin-right: 15px; background: rgba(255,255,255,0.1); border: 1px solid var(--border-color); color: var(--text-main); border-radius: 8px; cursor: pointer;">
+                    <i data-lucide="menu"></i>
+                </button>
+                <div class="app-title-group">
+                    <i data-lucide="activity" class="title-icon"></i>
+                    <div>
+                        <h1>E型粘度計解析システム</h1>
+                        <p class="subtitle">流動曲線作成 & 各種流動モデルフィッティングツール</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- パラメータ調整・動作状態 -->
+            <div class="header-controls">
+                <button id="theory-btn" class="icon-btn" style="margin-right: 16px; border-radius: 8px; padding: 0 12px;" title="推算理論・計算式">
+                    <i data-lucide="book-open"></i> <span style="font-size: 0.9em; margin-left: 4px;">理論・計算式</span>
+                </button>
+                <div class="status-indicator">
+                    <span class="dot pulse green"></span>
+                    <span id="status-text">システム起動完了</span>
+                </div>
+            </div>
+        </header>
+
+        <!-- サイドバー開閉時の半透明背景（バックドロップ） -->
+        <div id="sidebar-backdrop" class="sidebar-backdrop"></div>
+        
+        <!-- メイングリッド -->
+        <main class="app-main">
+            <!-- 左カラム: 仕様入力 & データ入力 -->
+            <div class="left-column">
+                <!-- 粘度計基本仕様 -->
+                <section class="panel panel-specs">
+                    <div class="panel-header">
+                        <div class="panel-title">
+                            <i data-lucide="settings"></i>
+                            <h2>粘度計基本仕様</h2>
+                        </div>
+                        <div class="panel-actions">
+                            <button id="spec-default-btn" class="btn btn-sm btn-secondary-outline" title="デフォルト仕様をロード">
+                                <i data-lucide="rotate-ccw"></i>
+                            </button>
+                            <label class="btn btn-sm btn-secondary-outline btn-icon" title="仕様をCSVから読込" for="spec-csv-input" style="margin-bottom: 0;">
+                                <i data-lucide="upload"></i>
+                            </label>
+                            <input type="file" id="spec-csv-input" accept=".csv" style="display: none;">
+                            <button id="spec-save-csv-btn" class="btn btn-sm btn-secondary" title="仕様をCSVへ保存">
+                                <i data-lucide="download"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="spec-container">
+                        <table class="spec-table">
+                            <tbody>
+                                <tr>
+                                    <td class="spec-label">メーカー</td>
+                                    <td>
+                                        <input type="text" id="spec-maker" class="cell-input text-left" placeholder="メーカーを入力">
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td class="spec-label">メーター型式</td>
+                                    <td>
+                                        <input type="text" id="spec-meter-type" class="cell-input text-left" placeholder="メーター型式を入力">
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td class="spec-label">ローター型式</td>
+                                    <td>
+                                        <input type="text" id="spec-rotor-type" class="cell-input text-left" placeholder="ローター型式を入力">
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td class="spec-label">コーン選択</td>
+                                    <td>
+                                        <select id="cone-select" class="select-control" style="width: 100%; padding: 4px 8px; font-size: inherit;">
+                                            <option value="Cone(small)">Small (CP-51 φ24)</option>
+                                            <option value="Cone(large)">Large (CP-41 φ48)</option>
+                                            <!-- カスタムコーンが動的に追加されます -->
+                                            <option value="create_new" class="create-new-option">+ 新規コーンパラメータを追加...</option>
+                                        </select>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td class="spec-label">レンジ型式</td>
+                                    <td>
+                                        <input type="text" id="spec-range-type" class="cell-input text-left" placeholder="レンジ型式を入力">
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td class="spec-label">RPM設定</td>
+                                    <td>
+                                        <input type="text" id="spec-rpm-set" class="cell-input text-left" placeholder="100, 50, 20, 10..." value="100, 50, 20, 10, 5, 2.5, 1, 0.5">
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td class="spec-label-sub">フルスケールトルク</td>
+                                    <td class="torque-inputs">
+                                        <div class="torque-field">
+                                            <input type="number" step="any" id="spec-torque-dyn" class="cell-input text-right" placeholder="-">
+                                            <span class="unit-label">dyn·cm</span>
+                                        </div>
+                                        <div class="torque-field">
+                                            <input type="number" step="any" id="spec-torque-nm" class="cell-input text-right" placeholder="-">
+                                            <span class="unit-label">N·m</span>
+                                        </div>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td class="spec-label-sub">ばね定数 k<br><span style="font-size: 0.8em; color: var(--text-muted);">(トルクからの計算値)</span></td>
+                                    <td class="torque-inputs">
+                                        <div class="torque-field">
+                                            <input type="text" id="spec-spring-k-dyn" class="cell-input text-right" readonly tabindex="-1" placeholder="-">
+                                            <span class="unit-label">dyn·cm/1周</span>
+                                        </div>
+                                        <div class="torque-field">
+                                            <input type="text" id="spec-spring-k-nm" class="cell-input text-right" readonly tabindex="-1" placeholder="-">
+                                            <span class="unit-label">N·m/1周</span>
+                                        </div>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </section>
+
+                <!-- 測定値データ入力パネルは右カラムに移動しました -->
+            </div>
+
+
+            <!-- 右カラム: 計算結果 & グラフ -->
+            <div class="right-column">
+                <!-- 測定値データ入力 (左カラムから移動) -->
+                <section class="panel panel-input" style="margin-bottom: 0px;">
+                    <div class="panel-header">
+                        <div class="panel-title">
+                            <i data-lucide="edit-3"></i>
+                            <h2>測定値データ入力</h2>
+                        </div>
+                        <div class="panel-actions">
+                            <button id="sample-add-btn" class="btn btn-sm btn-secondary" title="サンプル列を追加">
+                                <i data-lucide="plus"></i>
+                            </button>
+                            <button id="sample-remove-btn" class="btn btn-sm btn-secondary" title="サンプル列を削除">
+                                <i data-lucide="minus"></i>
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div class="table-container">
+                        <table id="input-table">
+                            <thead>
+                                <tr id="input-table-header">
+                                    <th class="sticky-col">データ入力</th>
+                                    <!-- サンプル列が動的に挿入されます -->
+                                </tr>
+                            </thead>
+                            <tbody id="input-table-body">
+                                <!-- 行データ（RPMおよびサンプルの指示値θ）が動的に挿入されます -->
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div class="panel-footer-actions">
+                        <button id="load-sample-btn" class="btn btn-secondary-outline btn-icon" title="テスト用サンプルデータを読み込む">
+                            <i data-lucide="sparkles"></i>
+                            <span>サンプルロード</span>
+                        </button>
+                        <button id="load-csv-btn" class="btn btn-secondary-outline btn-icon">
+                            <i data-lucide="upload"></i>
+                            <span>CSV読込</span>
+                        </button>
+                        <button id="save-csv-btn" class="btn btn-secondary-outline btn-icon">
+                            <i data-lucide="download"></i>
+                            <span>CSV保存</span>
+                        </button>
+
+                        <input type="file" id="csv-file-input" accept=".csv" style="display: none;">
+                    </div>
+                </section>
+
+                <!-- 右カラム共通ヘッダー（ビュー切り替えとサンプル選択） -->
+                <div class="right-column-header">
+                    <div class="main-view-tabs">
+                        <button class="view-tab-btn active" data-view="result">
+                            <i data-lucide="table"></i> データ出力
+                        </button>
+                        <button class="view-tab-btn" data-view="graph">
+                            <i data-lucide="line-chart"></i> グラフ・フィッティング解析
+                        </button>
+                    </div>
+                    <div class="sample-tabs" id="sample-selector-container">
+                        <!-- アクティブサンプル選択用タブが動的に挿入されます -->
+                    </div>
+                </div>
+
+                <!-- 計算結果テーブル -->
+                <section class="panel panel-result" id="panel-result">
+                    <div class="panel-header">
+                        <div class="panel-title">
+                            <i data-lucide="table"></i>
+                            <h2 id="result-table-title">データ出力：Sample #1</h2>
+                        </div>
+                    </div>
+
+                    <div class="table-container">
+                        <table id="result-table">
+                            <thead>
+                                <tr>
+                                    <th>RPM</th>
+                                    <th>せん断速度 D [1/s]</th>
+                                    <th>粘度 η [Pa·s]</th>
+                                    <th>せん断応力 τ [Pa]</th>
+                                </tr>
+                            </thead>
+                            <tbody id="result-table-body">
+                                <!-- 計算結果が動的に挿入されます -->
+                            </tbody>
+                        </table>
+                    </div>
+                </section>
+
+                <!-- グラフ描画 & フィッティング結果 -->
+                <section class="panel panel-graph" id="panel-graph" style="display: none;">
+                    <div class="panel-header flex-wrap" style="padding-top: 10px;">
+                        <div class="panel-title" style="display: none;">
+                            <i data-lucide="line-chart"></i>
+                            <h2>グラフ・フィッティング解析</h2>
+                        </div>
+                        <div class="graph-tabs-container" style="width: 100%;">
+                            <div class="graph-tabs">
+                                <button class="tab-btn active" data-tab="flow">流動曲線</button>
+                                <button class="tab-btn" data-tab="viscosity">粘性曲線</button>
+                            </div>
+                            <div class="graph-tabs">
+                                <button class="tab-btn" data-tab="newtonian">Newtonian</button>
+                                <button class="tab-btn" data-tab="bingham">Bingham</button>
+                                <button class="tab-btn" data-tab="casson">Casson</button>
+                                <button class="tab-btn" data-tab="powerlaw">Power-law</button>
+                                <button class="tab-btn" data-tab="hb">Herschel-Bulkley</button>
+                            </div>
+                            <div class="graph-tabs">
+                                <button class="tab-btn" data-tab="cross">Cross</button>
+                                <button class="tab-btn" data-tab="carreau">Carreau</button>
+                            </div>
+                            <div class="graph-tabs">
+                                <button class="tab-btn" data-tab="compare" style="background: rgba(16, 185, 129, 0.2); border-color: var(--accent-color);">全モデル比較</button>
+                            </div>
+                        </div>
+                        <div id="model-description-box" class="model-description-box" style="display: none;"></div>
+                    </div>
+
+                    <div class="graph-content-wrapper">
+                        <!-- 全モデル比較テーブル領域 (非表示) -->
+                        <div id="compare-table-container" style="display: none; width: 100%; overflow-x: auto;">
+                            <table class="data-table compare-table" id="compare-table">
+                                <thead>
+                                    <tr>
+                                        <th>モデル</th>
+                                        <th>適合性</th>
+                                        <th>R²</th>
+                                        <th>RMSE</th>
+                                        <th>MAE</th>
+                                        <th>特記事項</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <!-- 動的生成 -->
+                                </tbody>
+                            </table>
+                        </div>
+                        
+                        <!-- グラフ描画領域 -->
+                        <div class="chart-container" id="main-chart-container">
+                            <canvas id="chart-canvas"></canvas>
+                        </div>
+                        <!-- フィッティング定数などの情報表示 -->
+                        <div class="fitting-info-panel" id="fitting-info-panel" style="display: none;">
+                            <h3>フィッティング解析結果</h3>
+                            <div class="fitting-equation-box" id="fitting-equation-box"></div>
+                            <div class="fitting-results-grid" id="fitting-results-grid">
+                                <!-- 解析値が動的に挿入されます -->
+                            </div>
+                        </div>
+                    </div>
+                </section>
+            </div>
+        </main>
+    </div>
+
+    <!-- 新規コーン追加用モーダルダイアログ -->
+    <div class="modal-overlay" id="cone-modal" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3><i data-lucide="plus-circle" class="modal-header-icon"></i>新規コーンパラメータの登録</h3>
+                <button class="modal-close-btn" id="modal-close-x-btn">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="modal-form-group">
+                    <label for="new-cone-name">コーン名称 (例: CP-51 φ24)</label>
+                    <input type="text" id="new-cone-name" class="modal-input" placeholder="カスタムコーンの名前を入力" required>
+                </div>
+
+                <!-- コーン物理仕様入力 -->
+                <div class="modal-section-title">コーン物理仕様（入力すると下の各係数が自動計算されます）</div>
+                <div class="modal-specs-grid">
+                    <div class="modal-form-group">
+                        <label for="new-cone-radius">コーン半径 R [cm]</label>
+                        <input type="number" step="any" id="new-cone-radius" class="modal-input" placeholder="1.2">
+                    </div>
+                    <div class="modal-form-group">
+                        <label for="new-cone-angle">コーン角度 θ [deg]</label>
+                        <input type="number" step="any" id="new-cone-angle" class="modal-input" placeholder="1.565">
+                    </div>
+                </div>
+                
+                <div class="modal-template-select-group">
+                    <span class="control-label">パラメータテンプレートの適用:</span>
+                    <button type="button" class="btn btn-sm btn-secondary" id="apply-template-small">Small をコピー</button>
+                    <button type="button" class="btn btn-sm btn-secondary" id="apply-template-large">Large をコピー</button>
+                </div>
+
+                <div class="modal-section-title">各RPMに対する定数パラメータ（手動で編集も可能です）</div>
+                <div class="modal-table-container">
+                    <table id="modal-params-table">
+                        <thead>
+                            <tr>
+                                <th>RPM</th>
+                                <th>換算係数 KN<br><span class="unit-text">(mPa·s)</span></th>
+                                <th>計器乗数 K0<br><span class="unit-text">(Pa·s)</span></th>
+                                <th>ずり応力係数 K1<br><span class="unit-text">(Pa)</span></th>
+                                <th>ずり速度係数 K2<br><span class="unit-text">(1/s)</span></th>
+                            </tr>
+                        </thead>
+                        <tbody id="modal-params-body">
+                            <!-- JSで8行分の入力セルを動的生成 -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" id="modal-cancel-btn">キャンセル</button>
+                <button class="btn btn-primary" id="modal-save-btn">登録する</button>
+            </div>
+        </div>
+    </div>
+    </div>
+
+    <!-- 理論・計算式モーダル -->
+    <div id="theory-modal" class="modal-overlay" style="display: none;">
+        <div class="modal-container" style="max-width: 800px; width: 90%; max-height: 90vh;">
+            <div class="modal-header">
+                <h2>推算の根拠となる理論・式</h2>
+                <button class="icon-btn" id="theory-modal-close-btn"><i data-lucide="x"></i></button>
+            </div>
+            <div class="modal-body" style="overflow-y: auto; padding: 24px; display: flex; flex-direction: column; gap: 24px; color: var(--text-main);">
+                
+                <section>
+                    <h3 style="border-bottom: 1px solid var(--border-color); padding-bottom: 8px; margin-bottom: 16px; color: var(--accent-color);">1. E型粘度計による粘度測定 生データからの推算</h3>
+                    <p>E型粘度計（コーンプレート型粘度計）において、回転数（<span class="inline-math">N</span>）とトルク指示値（<span class="inline-math">TI</span>）から、せん断速度（<span class="inline-math">D</span>）、せん断応力（<span class="inline-math">\tau</span>）、および見かけ粘度（<span class="inline-math">\eta</span>）を求める基本式です。</p>
+                    <div style="background: var(--bg-surface); padding: 16px; border-radius: 8px; margin-top: 12px;">
+                        <h4 style="margin-bottom: 8px; font-size: 0.95em; color: var(--text-secondary);">せん断速度 <span class="inline-math">D \text{ [1/s]}</span></h4>
+                        <div id="theory-math-1"></div>
+                        
+                        <h4 style="margin-top: 16px; margin-bottom: 8px; font-size: 0.95em; color: var(--text-secondary);">せん断応力 <span class="inline-math">\tau \text{ [Pa]}</span></h4>
+                        <div id="theory-math-2"></div>
+                        
+                        <h4 style="margin-top: 16px; margin-bottom: 8px; font-size: 0.95em; color: var(--text-secondary);">見かけ粘度 <span class="inline-math">\eta \text{ [Pa·s]}</span></h4>
+                        <div id="theory-math-3"></div>
+                    </div>
+                </section>
+
+                <section>
+                    <h3 style="border-bottom: 1px solid var(--border-color); padding-bottom: 8px; margin-bottom: 16px; color: var(--accent-orange);">2. 流動曲線・粘度曲線のフィッティングモデル</h3>
+                    <p>流体のレオロジー挙動をモデル化するための各種構成方程式です。本システムでは実測データに対して非線形最小二乗法を用いてこれらのパラメータを同定します。</p>
+                    <div style="background: var(--bg-surface); padding: 16px; border-radius: 8px; margin-top: 12px;">
+                        <h4 style="margin-bottom: 8px; font-size: 0.95em; color: var(--text-secondary);">理想的な粘性流体 (Newtonian)</h4>
+                        <div id="theory-math-newtonian"></div>
+
+                        <h4 style="margin-top: 24px; margin-bottom: 8px; font-size: 0.95em; color: var(--text-secondary);">降伏応力を持つモデル (Bingham, Casson, Herschel-Bulkley)</h4>
+                        <div id="theory-math-4"></div>
+                        <div id="theory-math-5" style="margin-top: 12px;"></div>
+                        <div id="theory-math-6" style="margin-top: 12px;"></div>
+
+                        <h4 style="margin-top: 24px; margin-bottom: 8px; font-size: 0.95em; color: var(--text-secondary);">べき乗則および全領域モデル (Power-law, Cross, Carreau)</h4>
+                        <div id="theory-math-7"></div>
+                        <div id="theory-math-8" style="margin-top: 12px;"></div>
+                        <div id="theory-math-9" style="margin-top: 12px;"></div>
+                    </div>
+                </section>
+
+                <section>
+                    <h3 style="border-bottom: 1px solid var(--border-color); padding-bottom: 8px; margin-bottom: 16px; color: #10b981;">3. 回帰評価指標とフィッティング理論</h3>
+                    <p>各モデルの当てはまりの良さ（適合度）を評価し、比較するための指標です。本システムでは外れ値の影響やモデルの絶対誤差を総合的に評価するため、以下の指標を算出しています。</p>
+                    <div style="background: var(--bg-surface); padding: 16px; border-radius: 8px; margin-top: 12px;">
+                        <h4 style="margin-bottom: 8px; font-size: 0.95em; color: var(--text-secondary);">二乗平均平方根誤差 (RMSE) と 平均絶対誤差 (MAE)</h4>
+                        <p style="font-size: 0.9em; color: var(--text-muted); margin-bottom: 8px;">RMSEは大きな誤差を重くペナルティとして評価し、MAEは誤差の大きさを直感的に示します。※評価はせん断応力（<span class="inline-math">\tau</span>）基準で行われます。</p>
+                        <div id="theory-math-10"></div>
+                        
+                        <h4 style="margin-top: 24px; margin-bottom: 8px; font-size: 0.95em; color: var(--text-secondary);">決定係数 <span class="inline-math">R^2</span></h4>
+                        <p style="font-size: 0.9em; color: var(--text-muted); margin-bottom: 8px;">モデルが実測値のばらつきをどれくらい説明できているかを示す指標（最大1）。</p>
+                        <div id="theory-math-11"></div>
+                    </div>
+                </section>
+
+                <section>
+                    <h3 style="border-bottom: 1px solid var(--border-color); padding-bottom: 8px; margin-bottom: 16px; color: #3b82f6;">4. 回帰手法・最適化アルゴリズム</h3>
+                    <p>実測データに対して各モデルの式を当てはめ、最適なパラメータを算出するための手法です。</p>
+                    <div style="background: var(--bg-surface); padding: 16px; border-radius: 8px; margin-top: 12px;">
+                        <h4 style="margin-bottom: 8px; font-size: 0.95em; color: var(--text-secondary);">線形最小二乗法 (Ordinary Least Squares: OLS)</h4>
+                        <p style="font-size: 0.9em; color: var(--text-muted); margin-bottom: 8px;">Newtonian、Binghamなどの線形モデル、または対数変換等で線形化できるモデル（Casson、Power-law等）に対して用いられます。残差平方和が最小となるよう解析的にパラメータを求めます。</p>
+                        <div id="theory-math-12"></div>
+
+                        <h4 style="margin-top: 24px; margin-bottom: 8px; font-size: 0.95em; color: var(--text-secondary);">非線形回帰とパラメータ探索</h4>
+                        <p style="font-size: 0.9em; color: var(--text-muted); margin-bottom: 8px;">Herschel-Bulkley、Cross、Carreau等の解析的に解けない非線形モデルについては、一部の非線形パラメータ（τ_y や λ など）をスイープ探索させながら線形最小二乗法を適用し、RMSEが最小となる組み合わせを探索・同定しています。</p>
+                        <div id="theory-math-13"></div>
+                    </div>
+                </section>
+
+                <section>
+                    <h3 style="border-bottom: 1px solid var(--border-color); padding-bottom: 8px; margin-bottom: 16px; color: var(--accent-orange);">5. 記号・変数の定義一覧</h3>
+                    <div style="background: var(--bg-surface); padding: 16px; border-radius: 8px; margin-top: 12px; display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+                        <div>
+                            <ul style="list-style: none; padding-left: 0; margin: 0; display: flex; flex-direction: column; gap: 8px; color: var(--text-secondary); font-size: 0.95em;">
+                                <li><span class="inline-math">N</span> : 回転数 [rpm]</li>
+                                <li><span class="inline-math">TI</span> : トルク指示値 [%]</li>
+                                <li><span class="inline-math">D</span> : せん断速度 [1/s]</li>
+                                <li><span class="inline-math">\tau</span> : せん断応力 [Pa]</li>
+                                <li><span class="inline-math">\eta</span> : 見かけ粘度 [Pa·s]</li>
+                                <li><span class="inline-math">\alpha</span> : コーン角度 [rad]</li>
+                                <li><span class="inline-math">R</span> : コーン半径 [m]</li>
+                                <li><span class="inline-math">T_{full}</span> : フルスケールトルク [N·m]</li>
+                                <li><span class="inline-math">\tau_y</span> : 降伏応力 [Pa]</li>
+                                <li><span class="inline-math">\eta_0</span> : ゼロせん断粘度 [Pa·s]</li>
+                                <li><span class="inline-math">\eta_\infty</span> : 無限せん断粘度 [Pa·s]</li>
+                            </ul>
+                        </div>
+                        <div>
+                            <ul style="list-style: none; padding-left: 0; margin: 0; display: flex; flex-direction: column; gap: 8px; color: var(--text-secondary); font-size: 0.95em;">
+                                <li><span class="inline-math">\eta_p</span> : 塑性粘度 [Pa·s]</li>
+                                <li><span class="inline-math">\eta_c</span> : Casson粘度 [Pa·s]</li>
+                                <li><span class="inline-math">K</span> : 粘稠度指数</li>
+                                <li><span class="inline-math">n</span> : 流動挙動指数 (無次元)</li>
+                                <li><span class="inline-math">m</span> : Crossモデルの指数 (無次元)</li>
+                                <li><span class="inline-math">\lambda</span> : 緩和時間 [s]</li>
+                                <li><span class="inline-math">\tau_{obs}</span> : 実測せん断応力 [Pa]</li>
+                                <li><span class="inline-math">\tau_{pred}</span> : 予測せん断応力 [Pa]</li>
+                                <li><span class="inline-math">\bar{y}</span> : 実測値の平均</li>
+                                <li><span class="inline-math">\hat{y}</span> : モデルの予測値</li>
+                                <li><span class="inline-math">\theta</span> : 最適化対象のパラメータ集合</li>
+                            </ul>
+                        </div>
+                    </div>
+                </section>
+                
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-primary" id="theory-modal-ok-btn">閉じる</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- JavaScriptファイル -->
+    <script src="app.js"></script>
+</body>
+</html>
