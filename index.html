@@ -273,6 +273,9 @@
                             </div>
                             <div class="graph-tabs">
                                 <button class="tab-btn" data-tab="compare" style="background: rgba(16, 185, 129, 0.2); border-color: var(--accent-color);">全モデル比較</button>
+                                <button id="export-models-btn" class="tab-btn" title="全モデル解析結果をCSVとして出力（攪拌槽アプリで読込可能）" style="background: rgba(249, 115, 22, 0.15); border-color: var(--accent-orange, #f97316); color: var(--accent-orange, #f97316); margin-left: 10px; display: flex; align-items: center; gap: 6px;">
+                                    <i data-lucide="file-bar-chart" style="width: 14px; height: 14px;"></i> モデル解析CSV出力
+                                </button>
                             </div>
                         </div>
                         <div id="model-description-box" class="model-description-box" style="display: none;"></div>
@@ -299,6 +302,12 @@
                         </div>
                         
                         <!-- グラフ描画領域 -->
+                        <div style="display:flex; justify-content:flex-end; margin-bottom: 8px;">
+                            <label style="display:flex; align-items:center; gap:6px; cursor:pointer; font-size:0.85rem; color:#94a3b8;">
+                                <input type="checkbox" id="origin-zero-checkbox" style="accent-color: var(--accent-color);">
+                                原点(0,0)を含めて表示
+                            </label>
+                        </div>
                         <div class="chart-container" id="main-chart-container">
                             <canvas id="chart-canvas"></canvas>
                         </div>

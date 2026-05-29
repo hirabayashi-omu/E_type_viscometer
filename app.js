@@ -569,6 +569,7 @@ function initEventListeners() {
         document.getElementById("csv-file-input").click();
     });
     document.getElementById("csv-file-input").addEventListener("change", loadCSV);
+    document.getElementById("export-models-btn").addEventListener("click", exportModelResultsCSV);
 
     // モデル説明文の更新関数
     function updateModelDescription(tabId) {
@@ -584,9 +585,14 @@ function initEventListeners() {
     // グラフタブ切り替え
     document.querySelectorAll(".tab-btn").forEach(btn => {
         btn.addEventListener("click", (e) => {
-            document.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("active"));
-            e.target.classList.add("active");
-            state.activeTab = e.target.dataset.tab;
+            const targetBtn = e.currentTarget;
+            if (targetBtn.id === 'export-models-btn') return; // 出力ボタンは無視
+            
+            document.querySelectorAll(".tab-btn").forEach(b => {
+                if (b.id !== 'export-models-btn') b.classList.remove("active");
+            });
+            targetBtn.classList.add("active");
+            state.activeTab = targetBtn.dataset.tab;
             updateModelDescription(state.activeTab);
             renderChart();
         });
@@ -594,6 +600,14 @@ function initEventListeners() {
     
     // 初期タブの説明文を表示
     updateModelDescription(state.activeTab);
+
+    // 原点(0,0)表示チェックボックス
+    const originCheckbox = document.getElementById("origin-zero-checkbox");
+    if (originCheckbox) {
+        originCheckbox.addEventListener("change", () => {
+            renderChart();
+        });
+    }
 
     // メインビュータブ切り替え（データ出力 vs グラフ解析）
     document.querySelectorAll(".view-tab-btn").forEach(btn => {
@@ -1119,7 +1133,7 @@ function renderChart() {
             }
         } else {
             for (let i = 0; i <= steps; i++) {
-                const D = D_min + (D_max - D_min) * (i / steps);
+                const D = 0 + (D_max - 0) * (i / steps); // 常に0から描画して切片を見せる
                 points.push({ x: D, y: fitFunc(D) });
             }
         }
@@ -1305,10 +1319,14 @@ function renderChart() {
 \\tau &= ${binghamInterceptStr} ${binghamSlopeStr} D
 \\end{aligned}`);
 
+                const tau_y_display_bingham = lr.intercept < 0 
+                    ? `不適合 <span style="font-size:0.65rem; color:#94a3b8; font-weight:normal; margin-left:4px;">(切片が負)</span>` 
+                    : lr.intercept.toFixed(4);
+
                 fittingGrid.innerHTML = `
                     <div class="fitting-card">
                         <div class="fitting-card-title">降伏値 τy [Pa]</div>
-                        <div class="fitting-card-value red">${lr.intercept.toFixed(4)}</div>
+                        <div class="fitting-card-value red">${tau_y_display_bingham}</div>
                     </div>
                     <div class="fitting-card">
                         <div class="fitting-card-title">塑性粘度 ηp [Pa·s]</div>
@@ -1338,13 +1356,12 @@ function renderChart() {
 
                 const fitFunc = (x) => lr.intercept + lr.slope * x;
 
-                // X軸は √D の範囲
-                const sqrtD_min = Math.min(...sqrtD);
+                // X軸は 0 から √D_max の範囲（切片を見せるため）
                 const sqrtD_max = Math.max(...sqrtD);
                 const fitPoints = [];
                 const steps = 100;
                 for (let i = 0; i <= steps; i++) {
-                    const sd = sqrtD_min + (sqrtD_max - sqrtD_min) * (i / steps);
+                    const sd = 0 + (sqrtD_max - 0) * (i / steps);
                     fitPoints.push({ x: sd, y: fitFunc(sd) });
                 }
 
@@ -1369,19 +1386,22 @@ function renderChart() {
                 });
 
                 fittingPanel.style.display = "flex";
-                
-                // LaTeX数式描画
-                const sqrtTauY = Math.max(0, lr.intercept).toFixed(4);
-                const sqrtEtaC = Math.max(0, lr.slope).toFixed(4);
+                // LaTeX数式描画（実際の回帰直線の式を表示）
+                const cassonInterceptStr = lr.intercept.toFixed(4);
+                const cassonSlopeStr = lr.slope >= 0 ? `+ ${lr.slope.toFixed(4)}` : `- ${Math.abs(lr.slope).toFixed(4)}`;
                 renderFormula(`\\begin{aligned}
 \\sqrt{\\tau} &= \\sqrt{\\tau_y} + \\sqrt{\\eta_c} \\sqrt{D} \\\\
-\\sqrt{\\tau} &= ${sqrtTauY} + ${sqrtEtaC} \\sqrt{D}
+\\sqrt{\\tau} &= ${cassonInterceptStr} ${cassonSlopeStr} \\sqrt{D}
 \\end{aligned}`);
+
+                const tau_y_display = lr.intercept < 0 
+                    ? `不適合 <span style="font-size:0.65rem; color:#94a3b8; font-weight:normal; margin-left:4px;">(切片が負)</span>` 
+                    : tau_y.toFixed(4);
 
                 fittingGrid.innerHTML = `
                     <div class="fitting-card">
                         <div class="fitting-card-title">Casson降伏値 τy [Pa]</div>
-                        <div class="fitting-card-value red">${tau_y.toFixed(4)}</div>
+                        <div class="fitting-card-value red">${tau_y_display}</div>
                     </div>
                     <div class="fitting-card">
                         <div class="fitting-card-title">Casson粘度 ηc [Pa·s]</div>
@@ -1497,10 +1517,14 @@ function renderChart() {
 \\tau &= ${hbTauYStr} ${hbKStr} D^{${hbFit.n.toFixed(4)}}
 \\end{aligned}`);
 
+                const tau_y_display_hb = hbFit.tau_y < 0 
+                    ? `不適合 <span style="font-size:0.65rem; color:#94a3b8; font-weight:normal; margin-left:4px;">(切片が負)</span>` 
+                    : hbFit.tau_y.toFixed(4);
+
                 fittingGrid.innerHTML = `
                     <div class="fitting-card">
                         <div class="fitting-card-title">降伏値 τy [Pa]</div>
-                        <div class="fitting-card-value red">${hbFit.tau_y.toFixed(4)}</div>
+                        <div class="fitting-card-value red">${tau_y_display_hb}</div>
                     </div>
                     <div class="fitting-card">
                         <div class="fitting-card-title">粘性係数 K [Pa·s^n]</div>
@@ -1681,6 +1705,12 @@ function renderChart() {
             break;
     }
 
+    const originCheckbox = document.getElementById("origin-zero-checkbox");
+    if (originCheckbox && originCheckbox.checked) {
+        if (chartOptions.scales.x.type !== 'logarithmic') chartOptions.scales.x.min = 0;
+        if (chartOptions.scales.y.type !== 'logarithmic') chartOptions.scales.y.min = 0;
+    }
+
     chartInstance = new Chart(canvas, {
         data: chartData,
         options: chartOptions,
@@ -1839,6 +1869,84 @@ function loadCSV(e) {
 }
 
 
+
+
+// ==========================================
+// 9-b. モデル解析結果CSVエクスポート
+// ==========================================
+function exportModelResultsCSV() {
+    const now = new Date().toISOString().slice(0, 16).replace('T', ' ');
+    let csv = '\uFEFF'; // BOM
+    csv += `# E型粘度計 モデル解析結果エクスポート\n`;
+    csv += `# 生成日時: ${now}\n`;
+    csv += `# コーン種: ${state.coneType}\n`;
+    csv += `#\n`;
+    csv += `Sample,Model,Rating,R2,RMSE_Pa,MAE_Pa,eta_0_Pas,tau_y_Pa,eta_p_Pas,K_Pasn,n_flow,lambda_s,m_cross,eta_inf_Pas\n`;
+
+    state.sampleNames.forEach(sampleName => {
+        const dataList = state.calcResults[sampleName] || [];
+        const validPoints = dataList.filter(d => d.D !== null && d.tau !== null && d.eta !== null);
+        if (validPoints.length === 0) return;
+
+        const metrics = calculateAllModelsMetrics(validPoints);
+
+        metrics.forEach(m => {
+            if (!m.fit) return;
+            const f = m.fit;
+            const r2   = isNaN(m.r2)   ? '' : m.r2.toFixed(6);
+            const rmse = isNaN(m.rmse) ? '' : m.rmse.toFixed(6);
+            const mae  = isNaN(m.mae)  ? '' : m.mae.toFixed(6);
+
+            // パラメータを列に対応づけ
+            // eta_0, tau_y, eta_p, K, n, lambda, m, eta_inf
+            let eta_0='', tau_y='', eta_p='', K='', n_flow='', lambda='', m_c='', eta_inf='';
+            switch (m.modelId) {
+                case 'newtonian':
+                    eta_0 = f.eta_0 != null ? f.eta_0.toFixed(6) : '';
+                    break;
+                case 'bingham':
+                    tau_y = f.tau_y != null ? f.tau_y.toFixed(6) : '';
+                    eta_p = f.eta_p != null ? f.eta_p.toFixed(6) : '';
+                    break;
+                case 'casson':
+                    tau_y = f.tau_y != null ? f.tau_y.toFixed(6) : '';
+                    eta_p = f.eta_p != null ? f.eta_p.toFixed(6) : '';
+                    break;
+                case 'powerlaw':
+                    K      = f.K != null ? f.K.toFixed(6) : '';
+                    n_flow = f.n != null ? f.n.toFixed(6) : '';
+                    break;
+                case 'hb':
+                    tau_y  = f.tau_y != null ? f.tau_y.toFixed(6) : '';
+                    K      = f.K != null ? f.K.toFixed(6) : '';
+                    n_flow = f.n != null ? f.n.toFixed(6) : '';
+                    break;
+                case 'cross':
+                    eta_0   = f.eta_0   != null ? f.eta_0.toFixed(6)   : '';
+                    eta_inf = f.eta_inf != null ? f.eta_inf.toFixed(6) : '';
+                    K       = f.K       != null ? f.K.toFixed(6)       : '';
+                    m_c     = f.m       != null ? f.m.toFixed(6)       : '';
+                    break;
+                case 'carreau':
+                    eta_0   = f.eta_0   != null ? f.eta_0.toFixed(6)   : '';
+                    eta_inf = f.eta_inf != null ? f.eta_inf.toFixed(6) : '';
+                    lambda  = f.lambda  != null ? f.lambda.toFixed(6)  : '';
+                    n_flow  = f.n       != null ? f.n.toFixed(6)       : '';
+                    break;
+            }
+            csv += `"${sampleName}",${m.name},${m.rating},${r2},${rmse},${mae},${eta_0},${tau_y},${eta_p},${K},${n_flow},${lambda},${m_c},${eta_inf}\n`;
+        });
+    });
+
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.setAttribute('download', `rheology_models_${now.replace(/[ :]/g, '-')}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    updateStatus('モデル解析結果CSVをエクスポートしました');
+}
 
 // ステータス表示の更新
 function updateStatus(text) {
