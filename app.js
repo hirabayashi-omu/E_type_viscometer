@@ -385,6 +385,13 @@ function solveCarreauModel(D_vals, eta_vals) {
     return { eta_0: bestParams[0], eta_inf: bestParams[1], lambda: bestParams[2], n: bestParams[3], r2: r2 };
 }
 
+function computeMetznerOttoRep(rpm, K2) {
+    return (K2 * rpm) / 60;
+}
+
+function computeCarreauViscosityAt(D, fit) {
+    return fit.eta_inf + (fit.eta_0 - fit.eta_inf) * Math.pow(1 + Math.pow(fit.lambda * D, 2), (fit.n - 1) / 2);
+}
 
 // ==========================================
 // 3. UIレンダリング・操作ロジック
@@ -1673,6 +1680,21 @@ function renderChart() {
                     fill: false
                 });
 
+                const cone = coneParams[state.coneType] || { K2: [] };
+                const metznerEntries = validLogPoints.map(p => {
+                    const rpmIndex = state.rpms.indexOf(p.rpm);
+                    const k2 = cone.K2[rpmIndex] || 0;
+                    const rep = computeMetznerOttoRep(p.rpm, k2);
+                    const etaEff = computeCarreauViscosityAt(rep, fit);
+                    return { rpm: p.rpm, rep, etaEff };
+                });
+                const metznerHtml = metznerEntries.map(entry => `
+                    <div class="metzner-row">
+                        <span class="metzner-label">N=${entry.rpm} rpm</span>
+                        <span class="metzner-value">γ̇_rep=${entry.rep.toFixed(3)} [1/s], η_eff=${entry.etaEff.toFixed(4)} Pa·s</span>
+                    </div>
+                `).join("");
+
                 fittingPanel.style.display = "flex";
                 renderFormula(`\\begin{aligned}
 \\eta &= \\eta_\\infty + (\\eta_0 - \\eta_\\infty)[1 + (\\lambda \\dot{\\gamma})^2]^{(n-1)/2} \\\\
@@ -1699,6 +1721,10 @@ function renderChart() {
                     <div class="fitting-card" style="grid-column: span 2;">
                         <div class="fitting-card-title">決定係数 R²</div>
                         <div class="fitting-card-value text-main">${fit.r2.toFixed(4)}</div>
+                    </div>
+                    <div class="fitting-card" style="grid-column: span 2;">
+                        <div class="fitting-card-title">Metzner–Otto γ̇_rep / η_eff</div>
+                        <div class="fitting-card-value" style="font-size:0.85rem; line-height:1.4; color: var(--text-muted);">${metznerHtml}</div>
                     </div>
                 `;
             }
@@ -2036,13 +2062,30 @@ function loadFromLocalStorage() {
 
 // テスト用サンプルデータの読み込み
 function loadSampleData() {
-    state.numSamples = 4;
-    state.sampleNames = ["チーズ", "クリーム", "バター", "とろろ"];
+    state.numSamples = 10;
+    state.sampleNames = [
+        "マヨネーズ",
+        "チョコレート",
+        "ヨーグルト",
+        "トマトソース",
+        "接着剤ペースト",
+        "化粧クリーム",
+        "粘土スラリー",
+        "ポリマー溶液",
+        "デンプン懸濁液",
+        "ゼリー状洗剤"
+    ];
     const rawData = [
-        [100, 50, 10, 2], // チーズ
-        [56, 20, 2], // クリーム
-        [34, 11], // バター
-        [46, 24, 11] // とろろ
+        [120, 90, 60, 42, 30, 22, 18, 16], // マヨネーズ
+        [95, 72, 51, 38, 28, 21, 16, 14], // チョコレート
+        [60, 45, 32, 24, 18, 14, 11, 10], // ヨーグルト
+        [45, 34, 25, 18, 14, 11, 9, 8], // トマトソース
+        [150, 110, 80, 55, 40, 30, 22, 18], // 接着剤ペースト
+        [35, 28, 21, 16, 12, 9, 7, 6], // 化粧クリーム
+        [80, 64, 49, 38, 29, 23, 18, 15], // 粘土スラリー
+        [70, 55, 42, 32, 24, 19, 15, 13], // ポリマー溶液
+        [110, 85, 62, 46, 34, 26, 20, 17], // デンプン懸濁液
+        [55, 42, 31, 23, 17, 13, 10, 9] // ゼリー状洗剤
     ];
     
     state.inputData = rawData.map(d => {
@@ -2057,7 +2100,7 @@ function loadSampleData() {
     renderInputTable();
     renderSampleTabs();
     calculate();
-    updateStatus("サンプルデータをロードしました (デモデータ適用中)");
+    updateStatus("非ニュートン流体のサンプルデータをロードしました");
 }
 
 // ==========================================
@@ -2519,6 +2562,7 @@ function renderTheoryMath() {
         { id: "theory-math-7", tex: "\\text{Power-law:} \\quad \\tau = K D^n \\quad (\\eta = K D^{n-1})" },
         { id: "theory-math-8", tex: "\\text{Cross:} \\quad \\eta = \\eta_\\infty + \\frac{\\eta_0 - \\eta_\\infty}{1 + (K D)^m}" },
         { id: "theory-math-9", tex: "\\text{Carreau:} \\quad \\eta = \\eta_\\infty + (\\eta_0 - \\eta_\\infty) [1 + (\\lambda D)^2]^{\\frac{n-1}{2}}" },
+        { id: "theory-math-14", tex: "\\text{Metzner–Otto:} \\quad \\dot{\\gamma}_{rep} = k_s N, \\quad \\eta_{eff} = \\eta(\\dot{\\gamma}_{rep})" },
         { id: "theory-math-10", tex: "\\begin{aligned} \\text{RMSE} &= \\sqrt{ \\frac{1}{n} \\sum_{i=1}^n (\\tau_{\\text{obs},i} - \\tau_{\\text{pred},i})^2 } \\\\ \\text{MAE} &= \\frac{1}{n} \\sum_{i=1}^n |\\tau_{\\text{obs},i} - \\tau_{\\text{pred},i}| \\end{aligned}" },
         { id: "theory-math-11", tex: "R^2 = 1 - \\frac{\\sum (y_i - \\hat{y}_i)^2}{\\sum (y_i - \\bar{y})^2}" },
         { id: "theory-math-12", tex: "\\begin{aligned} y &= ax + b \\\\ a &= \\frac{\\sum (x_i - \\bar{x})(y_i - \\bar{y})}{\\sum (x_i - \\bar{x})^2} \\\\ b &= \\bar{y} - a\\bar{x} \\end{aligned}" },

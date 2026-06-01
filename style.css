@@ -724,6 +724,27 @@ tr:first-child .cell-input {
     color: var(--accent-red);
 }
 
+.metzner-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    align-items: baseline;
+    margin-bottom: 0.5rem;
+}
+
+.metzner-label {
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    min-width: 110px;
+    flex-shrink: 0;
+}
+
+.metzner-value {
+    font-size: 0.9rem;
+    color: var(--text-main);
+    white-space: normal;
+}
+
 .flex-wrap {
     flex-wrap: wrap;
     gap: 12px;
