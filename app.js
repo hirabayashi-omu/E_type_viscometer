@@ -386,7 +386,7 @@ function solveCarreauModel(D_vals, eta_vals) {
 }
 
 function computeMetznerOttoRep(rpm, K2) {
-    return (K2 * rpm) / 60;
+    return K2 * rpm;
 }
 
 function computeCarreauViscosityAt(D, fit) {
@@ -804,13 +804,14 @@ function calculate() {
                 resultList.push({ rpm, D: null, eta: null, tau: null });
             } else {
                 const theta = val;
-                const KN_val = params.KN[rpmIdx] || 0;
                 const K1_val = params.K1[rpmIdx] || 0;
                 const K2_val = params.K2[rpmIdx] || 0;
 
-                const D = (K2_val * rpm) / 60;
-                const eta = (KN_val * theta) / 1000;
+                // せん断速度 D は K2 にすでに回転数あたりの係数が含まれているため /60 は不要
+                const D = K2_val * rpm;
                 const tau = K1_val * theta;
+                // 粘度は 定義通り tau / D (Pa・s)
+                const eta = tau / D;
 
                 resultList.push({ rpm, D, eta, tau });
             }
